@@ -1,0 +1,43 @@
+[tool.poetry]
+name = "fluffy-octo-spoon"
+version = "0.1.0"
+description = "A tool to classify transactions to categories in your bank account statement"
+authors = ["jm-glowienke <jmglowienke@gmail.com>"]
+license = "GPL-3.0"
+readme = "README.md"
+
+[tool.poetry.scripts]
+fluffy-dash = "fluffy_octo_spoon.dashboard:main"
+fluffy-classify = "fluffy_octo_spoon.transaction_classifier:main"
+
+[tool.poetry.dependencies]
+python = "^3.13"
+pandas = "^2.2.3"
+pyyaml = "^6.0.2"
+plotly = "^5.24.1"
+dash = "^2.18.2"
+typer = "^0.15.1"
+
+
+[tool.poetry.group.dev.dependencies]
+ruff = "^0.8.4"
+mypy = "^1.14.0"
+pytest = "^8.3.4"
+pre-commit = "^4.0.1"
+ipykernel = "^6.29.5"
+types-pyyaml = "^6.0.12.20241221"
+pandas-stubs = "^2.2.3.241126"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.ruff]
+line-length = 120
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["I", "E", "F", "C", "N", "D101", "D102", "D103"]
+
+[tool.mypy]
+exclude = ["notebooks/", "dashboard.py"]
