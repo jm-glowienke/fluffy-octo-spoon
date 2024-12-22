@@ -1,10 +1,10 @@
 import csv
-import yaml
-from pathlib import Path
-from datetime import datetime
-from typing import Dict, List, Optional
 import logging
 from decimal import Decimal
+from pathlib import Path
+from typing import Dict, List
+
+import yaml
 
 
 class TransactionClassifier:
@@ -57,7 +57,9 @@ class TransactionClassifier:
         """
         try:
             if debit:
-                return -Decimal(debit.replace("'", "").replace(",", "."))
+                # In case the debit string is already negative, keep it as negative amount
+                # by first taking the absolute value
+                return -abs(Decimal(debit.replace("'", "").replace(",", ".")))
             elif credit:
                 return Decimal(credit.replace("'", "").replace(",", "."))
             return Decimal("0")
@@ -82,6 +84,10 @@ class TransactionClassifier:
             if any(keyword.lower() in description for keyword in keywords):
                 return category
 
+        self.logger.info(
+            f"Could not classify transaction with description {description} and amount {amount}. "
+            "Using Amount-based Classification"
+        )
         # Amount-based classification
         if amount > 0:
             if amount > 3000:
@@ -90,6 +96,7 @@ class TransactionClassifier:
             if abs(amount) > 1000:
                 return "Grosse Ausgaben"
 
+        self.logger.info("No category identified, adding category 'Sonstiges'")
         return "Sonstiges"
 
     def process_transactions(self, input_path: Path, output_path: Path) -> None:
