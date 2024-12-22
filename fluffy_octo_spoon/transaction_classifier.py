@@ -1,9 +1,10 @@
 import csv
 import io
 import logging
+import uuid
 from decimal import Decimal
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Optional, Tuple
 
 import yaml
 
@@ -37,15 +38,22 @@ class TransactionClassifier:
         """
         self.categories: Dict[str, List[str]] = self._load_category_mapping(yaml_path)
         self._setup_logging()
+        self.logger.debug(f"Loaded {len(self.categories)} categories from YAML file")
 
     def _setup_logging(self) -> None:
         """Configure logging for the classifier."""
         logging.basicConfig(
-            level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
+            level=logging.INFO,
+            format="%(asctime)s - %(levelname)s - [%(name)s] - %(message)s",
+            datefmt="%Y-%m-%d %H:%M:%S",
         )
-        self.logger = logging.getLogger(__name__)
+        self.logger = logging.getLogger("TransactionClassifier")
 
-    def _clean_csv_content(self, file_path: Path) -> str:
+    def _generate_transaction_id(self) -> str:
+        """Generate a unique transaction ID."""
+        return str(uuid.uuid4())
+
+    def _clean_csv_content(self, file_path: Path) -> Tuple[str, List[str]]:
         """
         Remove header information and find the actual CSV content starting with column names.
 
@@ -53,28 +61,32 @@ class TransactionClassifier:
             file_path: Path to the input CSV file
 
         Returns:
-            String containing the cleaned CSV content
+            Tuple containing cleaned CSV content and list of existing column names
         """
+        self.logger.debug(f"Reading CSV file: {file_path}")
         with open(file_path, "r", encoding="utf-8") as file:
             content = file.readlines()
 
         # Find the line containing the column headers
         header_index = -1
+        existing_columns = []
         for i, line in enumerate(content):
-            # Check if this line contains most of our expected columns
             columns = line.strip().split(";")
             matches = sum(1 for col in columns if col in self.EXPECTED_COLUMNS)
             if matches >= len(self.EXPECTED_COLUMNS) * 0.8:  # 80% match threshold
                 header_index = i
+                existing_columns = columns
                 break
 
         if header_index == -1:
             raise ValueError("Could not find the column headers in the CSV file")
 
+        self.logger.info(f"Found header row at line {header_index + 1}")
+        self.logger.debug(f"Existing columns: {existing_columns}")
+
         # Return only the content from the header row onwards
         cleaned_content = "".join(content[header_index:])
-        self.logger.info(f"Removed {header_index} header lines from the CSV file")
-        return cleaned_content
+        return cleaned_content, existing_columns
 
     @staticmethod
     def _load_category_mapping(yaml_path: Path) -> Dict[str, List[str]]:
@@ -89,17 +101,22 @@ class TransactionClassifier:
         """
         try:
             with open(yaml_path, "r", encoding="utf-8") as file:
-                return yaml.safe_load(file)
+                categories = yaml.safe_load(file)
+                logging.getLogger("TransactionClassifier").debug(
+                    f"Loaded categories from {yaml_path}: {list(categories.keys())}"
+                )
+                return categories
         except Exception as e:
             raise RuntimeError(f"Failed to load YAML file: {e}")
 
-    def _parse_amount(self, debit: str, credit: str) -> Decimal:
+    def _parse_amount(self, debit: str, credit: str, transaction_id: str) -> Decimal:
         """
         Parse transaction amount from debit or credit field.
 
         Args:
             debit: Debit amount string
             credit: Credit amount string
+            transaction_id: Unique transaction ID for logging
 
         Returns:
             Decimal amount (negative for debits, positive for credits)
@@ -108,44 +125,74 @@ class TransactionClassifier:
             if debit:
                 # In case the debit string is already negative, keep it as negative amount
                 # by first taking the absolute value
-                return -abs(Decimal(debit.replace("'", "").replace(",", ".")))
+                amount = -abs(Decimal(debit.replace("'", "").replace(",", ".")))
+                self.logger.debug(f"[{transaction_id}] Parsed debit amount: {amount}")
+                return amount
             elif credit:
-                return Decimal(credit.replace("'", "").replace(",", "."))
+                amount = Decimal(credit.replace("'", "").replace(",", "."))
+                self.logger.debug(f"[{transaction_id}] Parsed credit amount: {amount}")
+                return amount
+
+            self.logger.warning(f"[{transaction_id}] No amount found in transaction")
             return Decimal("0")
         except Exception as e:
-            self.logger.warning(f"Could not parse amount: {e}")
+            self.logger.error(f"[{transaction_id}] Could not parse amount: {e}")
             return Decimal("0")
 
-    def classify_transaction(self, description: str, amount: Decimal) -> str:
+    def classify_transaction(  # noqa: C901
+        self, description: str, amount: Decimal, transaction_id: str, existing_category: Optional[str] = None
+    ) -> str:
         """
         Classify a transaction based on its description and amount.
 
         Args:
             description: Transaction description to classify
             amount: Transaction amount
+            transaction_id: Unique transaction ID for logging
+            existing_category: Existing category if present
 
         Returns:
             Classified category or 'Unknown' if no match is found
         """
-        description = description.lower()
+        self.logger.debug(f"[{transaction_id}] Classifying transaction: {description[:50]}...")
 
+        if existing_category:
+            new_category = None
+            description = description.lower()
+
+            # Check if the existing category would be classified differently
+            for category, keywords in self.categories.items():
+                if any(keyword.lower() in description for keyword in keywords):
+                    new_category = category
+                    break
+
+            if new_category and new_category != existing_category:
+                self.logger.warning(
+                    f"[{transaction_id}] Category conflict: existing='{existing_category}' "
+                    f"new='{new_category}'. Using new category."
+                )
+                return new_category
+
+            self.logger.debug(f"[{transaction_id}] Using existing category: {existing_category}")
+            return existing_category
+
+        description = description.lower()
         for category, keywords in self.categories.items():
             if any(keyword.lower() in description for keyword in keywords):
+                self.logger.debug(f"[{transaction_id}] Matched category '{category}' based on keywords")
                 return category
 
-        self.logger.debug(
-            f"Could not classify transaction with description {description} and amount {amount}. "
-            "Using Amount-based Classification"
-        )
         # Amount-based classification
         if amount > 0:
             if amount > 3000:
+                self.logger.debug(f"[{transaction_id}] Classified as 'Gehalt' based on amount")
                 return "Gehalt"
         elif amount < 0:
             if abs(amount) > 1000:
+                self.logger.debug(f"[{transaction_id}] Classified as 'Grosse Ausgaben' based on amount")
                 return "Grosse Ausgaben"
 
-        self.logger.debug("No category identified, adding category 'Sonstiges'")
+        self.logger.debug(f"[{transaction_id}] No category match found, using 'Sonstiges'")
         return "Sonstiges"
 
     def process_transactions(self, input_path: Path, output_path: Path) -> None:
@@ -158,14 +205,27 @@ class TransactionClassifier:
         """
         try:
             # Clean the CSV content first
-            cleaned_content = self._clean_csv_content(input_path)
+            cleaned_content, existing_columns = self._clean_csv_content(input_path)
 
             # Process the cleaned content
             transactions = []
             csv_file = io.StringIO(cleaned_content)
             reader = csv.DictReader(csv_file, delimiter=";")
 
+            # Check for existing ID and Category columns
+            has_id_column = "ID" in existing_columns
+            has_category_column = "Kategorie" in existing_columns
+
+            self.logger.info(
+                f"Processing CSV with existing columns - ID: {has_id_column}, " f"Category: {has_category_column}"
+            )
+
             for row in reader:
+                # Use existing ID or generate new one
+                transaction_id = row.get("ID", self._generate_transaction_id())
+
+                self.logger.debug(f"Processing transaction [{transaction_id}]")
+
                 # Combine all description fields for better classification
                 combined_description = " ".join(
                     filter(
@@ -174,9 +234,14 @@ class TransactionClassifier:
                 )
 
                 # Parse amount
-                amount = self._parse_amount(row.get("Belastung", ""), row.get("Gutschrift", ""))
+                amount = self._parse_amount(row.get("Belastung", ""), row.get("Gutschrift", ""), transaction_id)
 
-                category = self.classify_transaction(combined_description, amount)
+                # Classify transaction
+                existing_category = row.get("Kategorie") if has_category_column else None
+                category = self.classify_transaction(combined_description, amount, transaction_id, existing_category)
+
+                # Update row with ID and category
+                row["ID"] = transaction_id
                 row["Kategorie"] = category
                 transactions.append(row)
 
@@ -184,17 +249,18 @@ class TransactionClassifier:
             if transactions:
                 fieldnames = list(transactions[0].keys())
                 with open(output_path, "w", encoding="utf-8", newline="") as file:
-                    self.logger.info(f"Write transactions to {output_path}")
                     writer = csv.DictWriter(file, fieldnames=fieldnames, delimiter=";")
                     writer.writeheader()
                     writer.writerows(transactions)
 
-                self.logger.info(f"Erfolgreich {len(transactions)} Transaktionen verarbeitet")
+                self.logger.info(
+                    f"Successfully processed {len(transactions)} transactions. " f"Output written to {output_path}"
+                )
             else:
-                self.logger.warning("Keine Transaktionen zum Verarbeiten gefunden")
+                self.logger.warning("No transactions found to process")
 
         except Exception as e:
-            self.logger.error(f"Fehler beim Verarbeiten der Transaktionen: {e}")
+            self.logger.error(f"Error processing transactions: {e}", exc_info=True)
             raise
 
 
