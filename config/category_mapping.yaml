@@ -1,0 +1,33 @@
+Groceries:
+  - "REWE"
+  - "ALDI"
+  - "LIDL"
+  - "EDEKA"
+  - "KAUFLAND"
+
+Transportation:
+  - "DEUTSCHE BAHN"
+  - "BVG"
+  - "TANKSTELLE"
+  - "ARAL"
+  - "SHELL"
+
+Entertainment:
+  - "NETFLIX"
+  - "SPOTIFY"
+  - "AMAZON PRIME"
+  - "CINEMA"
+  - "KINO"
+
+Utilities:
+  - "VATTENFALL"
+  - "WASSERBETRIEBE"
+  - "INTERNET"
+  - "TELEKOM"
+  - "VODAFONE"
+
+Restaurant:
+  - "RESTAURANT"
+  - "CAFÉ"
+  - "BISTRO"
+  - "IMBISS"P

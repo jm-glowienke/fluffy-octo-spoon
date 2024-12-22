@@ -1,0 +1,19 @@
+{
+    "python.testing.unittestEnabled": false,
+    "python.testing.pytestEnabled": true,
+    "files.autoSave": "onFocusChange",
+    "editor.formatOnSave": true,
+    "python.analysis.ignore": [
+        "*"
+    ],
+    "autoDocstring.docstringFormat": "google-notypes",
+    "autoDocstring.includeExtendedSummary": true,
+    "python.testing.cwd": "${workspaceFolder}",
+    "mypy-type-checker.ignorePatterns": [
+        "tests/**.py",
+        "tests/**/**.py"
+    ],
+    "python.testing.pytestArgs": [
+        "tests/"
+    ]
+}
