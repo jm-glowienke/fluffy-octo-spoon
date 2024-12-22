@@ -15,5 +15,6 @@
     ],
     "python.testing.pytestArgs": [
         "tests/"
-    ]
+    ],
+    "python.terminal.activateEnvInCurrentTerminal": true
 }

@@ -1,4 +1,5 @@
 import csv
+import io
 import logging
 from decimal import Decimal
 from pathlib import Path
@@ -9,6 +10,23 @@ import yaml
 
 class TransactionClassifier:
     """A class to classify Swiss bank transactions based on keyword mapping."""
+
+    EXPECTED_COLUMNS = [
+        "Abschlussdatum",
+        "Abschlusszeit",
+        "Buchungsdatum",
+        "Valutadatum",
+        "Währung",
+        "Belastung",
+        "Gutschrift",
+        "Einzelbetrag",
+        "Saldo",
+        "Transaktions-Nr.",
+        "Beschreibung1",
+        "Beschreibung2",
+        "Beschreibung3",
+        "Fussnoten",
+    ]
 
     def __init__(self, yaml_path: Path):
         """
@@ -26,6 +44,37 @@ class TransactionClassifier:
             level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
         )
         self.logger = logging.getLogger(__name__)
+
+    def _clean_csv_content(self, file_path: Path) -> str:
+        """
+        Remove header information and find the actual CSV content starting with column names.
+
+        Args:
+            file_path: Path to the input CSV file
+
+        Returns:
+            String containing the cleaned CSV content
+        """
+        with open(file_path, "r", encoding="utf-8") as file:
+            content = file.readlines()
+
+        # Find the line containing the column headers
+        header_index = -1
+        for i, line in enumerate(content):
+            # Check if this line contains most of our expected columns
+            columns = line.strip().split(";")
+            matches = sum(1 for col in columns if col in self.EXPECTED_COLUMNS)
+            if matches >= len(self.EXPECTED_COLUMNS) * 0.8:  # 80% match threshold
+                header_index = i
+                break
+
+        if header_index == -1:
+            raise ValueError("Could not find the column headers in the CSV file")
+
+        # Return only the content from the header row onwards
+        cleaned_content = "".join(content[header_index:])
+        self.logger.info(f"Removed {header_index} header lines from the CSV file")
+        return cleaned_content
 
     @staticmethod
     def _load_category_mapping(yaml_path: Path) -> Dict[str, List[str]]:
@@ -84,7 +133,7 @@ class TransactionClassifier:
             if any(keyword.lower() in description for keyword in keywords):
                 return category
 
-        self.logger.info(
+        self.logger.debug(
             f"Could not classify transaction with description {description} and amount {amount}. "
             "Using Amount-based Classification"
         )
@@ -96,7 +145,7 @@ class TransactionClassifier:
             if abs(amount) > 1000:
                 return "Grosse Ausgaben"
 
-        self.logger.info("No category identified, adding category 'Sonstiges'")
+        self.logger.debug("No category identified, adding category 'Sonstiges'")
         return "Sonstiges"
 
     def process_transactions(self, input_path: Path, output_path: Path) -> None:
@@ -108,29 +157,34 @@ class TransactionClassifier:
             output_path: Path to output CSV file
         """
         try:
+            # Clean the CSV content first
+            cleaned_content = self._clean_csv_content(input_path)
+
+            # Process the cleaned content
             transactions = []
-            with open(input_path, "r", encoding="utf-8") as file:
-                reader = csv.DictReader(file, delimiter=";")
-                for row in reader:
-                    # Combine all description fields for better classification
-                    combined_description = " ".join(
-                        filter(
-                            None,
-                            [row.get("Beschreibung1", ""), row.get("Beschreibung2", ""), row.get("Beschreibung3", "")],
-                        )
+            csv_file = io.StringIO(cleaned_content)
+            reader = csv.DictReader(csv_file, delimiter=";")
+
+            for row in reader:
+                # Combine all description fields for better classification
+                combined_description = " ".join(
+                    filter(
+                        None, [row.get("Beschreibung1", ""), row.get("Beschreibung2", ""), row.get("Beschreibung3", "")]
                     )
+                )
 
-                    # Parse amount
-                    amount = self._parse_amount(row.get("Belastung", ""), row.get("Gutschrift", ""))
+                # Parse amount
+                amount = self._parse_amount(row.get("Belastung", ""), row.get("Gutschrift", ""))
 
-                    category = self.classify_transaction(combined_description, amount)
-                    row["Kategorie"] = category
-                    transactions.append(row)
+                category = self.classify_transaction(combined_description, amount)
+                row["Kategorie"] = category
+                transactions.append(row)
 
             # Write classified transactions to output file
             if transactions:
                 fieldnames = list(transactions[0].keys())
                 with open(output_path, "w", encoding="utf-8", newline="") as file:
+                    self.logger.info(f"Write transactions to {output_path}")
                     writer = csv.DictWriter(file, fieldnames=fieldnames, delimiter=";")
                     writer.writeheader()
                     writer.writerows(transactions)
