@@ -1,33 +1,82 @@
-Groceries:
-  - "REWE"
-  - "ALDI"
-  - "LIDL"
-  - "EDEKA"
-  - "KAUFLAND"
+Lebensmittel:
+  - "MIGROS"
+  - "COOP"
+  - "DENNER"
+  - "ALDI SUISSE"
+  - "LIDL SCHWEIZ"
+  - "SPAR"
+  - "VOLG"
 
-Transportation:
-  - "DEUTSCHE BAHN"
-  - "BVG"
+Transport:
+  - "SBB"
+  - "ZVV"
+  - "MOBILITY"
+  - "BVB"
+  - "UBER"
+  - "TAXI"
+  - "PARKING"
   - "TANKSTELLE"
-  - "ARAL"
-  - "SHELL"
+  - "AGROLA"
+  - "COOP PRONTO"
+  - "MIGROL"
 
-Entertainment:
+Unterhaltung:
   - "NETFLIX"
   - "SPOTIFY"
   - "AMAZON PRIME"
-  - "CINEMA"
   - "KINO"
+  - "PATHÉ"
+  - "KITAG"
+  - "BLUE"
+  - "SWISSCOM"
 
-Utilities:
-  - "VATTENFALL"
-  - "WASSERBETRIEBE"
-  - "INTERNET"
-  - "TELEKOM"
-  - "VODAFONE"
+Fixkosten:
+  - "SWISSCOM"
+  - "SALT"
+  - "SUNRISE"
+  - "EWZ"
+  - "SERAFE"
+  - "MIETE"
+  - "KRANKENKASSE"
+  - "CSS"
+  - "SWICA"
+  - "HELSANA"
+  - "SANITAS"
 
 Restaurant:
   - "RESTAURANT"
   - "CAFÉ"
   - "BISTRO"
-  - "IMBISS"P
+  - "STARBUCKS"
+  - "MCDONALD"
+  - "BURGER KING"
+  - "SUBWAY"
+  - "PIZZERIA"
+
+Shopping:
+  - "MANOR"
+  - "GLOBUS"
+  - "JELMOLI"
+  - "H&M"
+  - "ZARA"
+  - "MEDIAMARKT"
+  - "INTERDISCOUNT"
+  - "GALAXUS"
+  - "DIGITEC"
+
+Sport:
+  - "MIGROS FITNESS"
+  - "ACTIV FITNESS"
+  - "BASEFIT"
+  - "FITNESS"
+  - "SPORTXX"
+  - "INTERSPORT"
+  - "OCHSNER SPORT"
+
+Gesundheit:
+  - "APOTHEKE"
+  - "PHARMACY"
+  - "DROGERIEN"
+  - "ARZT"
+  - "ZAHNARZT"
+  - "SPITAL"

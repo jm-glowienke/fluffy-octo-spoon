@@ -1,13 +1,14 @@
 import csv
-import logging
-from pathlib import Path
-from typing import Dict, List
-
 import yaml
+from pathlib import Path
+from datetime import datetime
+from typing import Dict, List, Optional
+import logging
+from decimal import Decimal
 
 
 class TransactionClassifier:
-    """A class to classify bank transactions based on keyword mapping."""
+    """A class to classify Swiss bank transactions based on keyword mapping."""
 
     def __init__(self, yaml_path: Path):
         """
@@ -21,7 +22,9 @@ class TransactionClassifier:
 
     def _setup_logging(self) -> None:
         """Configure logging for the classifier."""
-        logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+        logging.basicConfig(
+            level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
+        )
         self.logger = logging.getLogger(__name__)
 
     @staticmethod
@@ -41,12 +44,34 @@ class TransactionClassifier:
         except Exception as e:
             raise RuntimeError(f"Failed to load YAML file: {e}")
 
-    def classify_transaction(self, description: str) -> str:
+    def _parse_amount(self, debit: str, credit: str) -> Decimal:
         """
-        Classify a transaction based on its description.
+        Parse transaction amount from debit or credit field.
+
+        Args:
+            debit: Debit amount string
+            credit: Credit amount string
+
+        Returns:
+            Decimal amount (negative for debits, positive for credits)
+        """
+        try:
+            if debit:
+                return -Decimal(debit.replace("'", "").replace(",", "."))
+            elif credit:
+                return Decimal(credit.replace("'", "").replace(",", "."))
+            return Decimal("0")
+        except Exception as e:
+            self.logger.warning(f"Could not parse amount: {e}")
+            return Decimal("0")
+
+    def classify_transaction(self, description: str, amount: Decimal) -> str:
+        """
+        Classify a transaction based on its description and amount.
 
         Args:
             description: Transaction description to classify
+            amount: Transaction amount
 
         Returns:
             Classified category or 'Unknown' if no match is found
@@ -57,7 +82,15 @@ class TransactionClassifier:
             if any(keyword.lower() in description for keyword in keywords):
                 return category
 
-        return "Unknown"
+        # Amount-based classification
+        if amount > 0:
+            if amount > 3000:
+                return "Gehalt"
+        elif amount < 0:
+            if abs(amount) > 1000:
+                return "Grosse Ausgaben"
+
+        return "Sonstiges"
 
     def process_transactions(self, input_path: Path, output_path: Path) -> None:
         """
@@ -80,7 +113,10 @@ class TransactionClassifier:
                         )
                     )
 
-                    category = self.classify_transaction(combined_description)
+                    # Parse amount
+                    amount = self._parse_amount(row.get("Belastung", ""), row.get("Gutschrift", ""))
+
+                    category = self.classify_transaction(combined_description, amount)
                     row["Kategorie"] = category
                     transactions.append(row)
 
@@ -92,12 +128,12 @@ class TransactionClassifier:
                     writer.writeheader()
                     writer.writerows(transactions)
 
-                self.logger.info(f"Successfully processed {len(transactions)} transactions")
+                self.logger.info(f"Erfolgreich {len(transactions)} Transaktionen verarbeitet")
             else:
-                self.logger.warning("No transactions found to process")
+                self.logger.warning("Keine Transaktionen zum Verarbeiten gefunden")
 
         except Exception as e:
-            self.logger.error(f"Error processing transactions: {e}")
+            self.logger.error(f"Fehler beim Verarbeiten der Transaktionen: {e}")
             raise
 
 
