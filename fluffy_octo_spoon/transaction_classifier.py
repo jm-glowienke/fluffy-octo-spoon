@@ -185,8 +185,9 @@ class TransactionClassifier:
         # Amount-based classification
         if amount > 0:
             if amount > 3000:
-                self.logger.debug(f"[{transaction_id}] Classified as 'Gehalt' based on amount")
-                return "Gehalt"
+                pass
+                self.logger.debug(f"[{transaction_id}] Classified as 'Transfer' based on amount")
+                return "Transfer"
         elif amount < 0:
             if abs(amount) > 1000:
                 self.logger.debug(f"[{transaction_id}] Classified as 'Grosse Ausgaben' based on amount")
