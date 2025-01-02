@@ -18,7 +18,7 @@ df["Monat"] = df["Buchungsdatum"].dt.to_period("M").astype(str)  # Convert Perio
 df["Kategorie"] = df["Kategorie"].fillna("Sonstiges")
 
 # Calculate the monthly sums for each category
-monthly_category_sums = df.groupby(["Monat", "Kategorie"])["Einzelbetrag"].sum().reset_index()
+monthly_category_sums = df.groupby(["Monat", "Kategorie"])["Einzelbetrag"].sum().abs().reset_index()
 
 # Create the Dash app
 app = dash.Dash(__name__)
@@ -52,7 +52,7 @@ def update_bar_chart(group_by):
             y="Einzelbetrag",
             color="Kategorie",
             title="Monthly Transactions by Category",
-            barmode="stack",
+            barmode="group",  # Use 'group' to show each category as a separate bar
         )
     elif group_by == "category":
         fig = px.bar(
@@ -60,7 +60,7 @@ def update_bar_chart(group_by):
             x="Kategorie",
             y="Einzelbetrag",
             title="Total Transactions by Category",
-            barmode="stack",
+            barmode="group",
         )
     else:  # group_by == 'month'
         fig = px.bar(
@@ -68,7 +68,7 @@ def update_bar_chart(group_by):
             x="Monat",
             y="Einzelbetrag",
             title="Total Transactions by Month",
-            barmode="stack",
+            barmode="group",
         )
     return fig
 
