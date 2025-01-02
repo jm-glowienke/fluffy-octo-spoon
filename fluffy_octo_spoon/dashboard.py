@@ -13,8 +13,8 @@ classified_transactions_csv = Path.cwd() / "data/classified/classified_transacti
 df = pd.read_csv(classified_transactions_csv, delimiter=";", encoding="utf-8")
 
 # Preprocess the data
-df["Buchungsdatum"] = pd.to_datetime(df["Buchungsdatum"], format="%d.%m.%y")
-df["Monat"] = df["Buchungsdatum"].dt.to_period("M")
+df["Buchungsdatum"] = pd.to_datetime(df["Buchungsdatum"], format="%Y-%m-%d")  # "%d.%m.%y")
+df["Monat"] = df["Buchungsdatum"].dt.to_period("M").astype(str)  # Convert Period to string
 df["Kategorie"] = df["Kategorie"].fillna("Sonstiges")
 
 # Calculate the monthly sums for each category

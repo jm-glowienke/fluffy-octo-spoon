@@ -243,6 +243,7 @@ class TransactionClassifier:
                 # Update row with ID and category
                 row["ID"] = transaction_id
                 row["Kategorie"] = category
+                row["Einzelbetrag"] = amount
                 transactions.append(row)
 
             # Write classified transactions to output file
@@ -268,9 +269,9 @@ def main():
     """Main function to run the transaction classifier."""
     # Define paths
     base_path = Path.cwd()
-    yaml_path = base_path / "category_mapping.yaml"
-    input_path = base_path / "transactions.csv"
-    output_path = base_path / "classified_transactions.csv"
+    yaml_path = base_path / "config/category_mapping.yaml"
+    input_path = base_path / "data/raw/transactions_gemeinsam.csv"
+    output_path = base_path / "data/classified/classified_transactions.csv"
 
     # Initialize and run classifier
     classifier = TransactionClassifier(yaml_path)

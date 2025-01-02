@@ -8,6 +8,7 @@ readme = "README.md"
 
 [tool.poetry.scripts]
 fluffy-dash = "fluffy_octo_spoon.dashboard:main"
+fluffy-classify = "fluffy_octo_spoon.transaction_classifier:main"
 
 [tool.poetry.dependencies]
 python = "^3.13"
